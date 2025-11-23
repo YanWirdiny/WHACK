@@ -75,68 +75,162 @@ export async function analyzeVideoWithGemini(
 
         // Create the prompt for visually impaired assistance
         const prompt = `
-You are an AI assistant helping visually impaired users understand their environment.
-Analyze this video and provide detailed object detection with distance estimation.
+
+You are an AI assistant helping visually impaired users understand potential hazards and obstacles in their environment.
+
+
+Your goal is to prioritize safety risks only — do not describe decorative, harmless, or irrelevant surroundings.
+
 
 IMPORTANT CONTEXT:
 - There is a processing delay between video capture and analysis (several seconds)
 - The situation may have changed since the video was recorded
 - Your role is to INFORM about what was observed, NOT to give movement/navigation instructions
 
+
 CRITICAL INSTRUCTIONS:
 1. MUTE the audio/sound first - do NOT process or listen to any audio
 2. Analyze ONLY the visual content (frames/images) of the video
 3. Completely ignore, discard, and do not consider any audio, sound, music, or voice in the video
+Your ONLY job is to detect dangerous or obstructive elements that could cause:
+Collision
 
-For each important object detected (vehicles, people, obstacles, signs, crosswalks, etc.), provide:
 
+Tripping
+
+
+Falling
+
+
+Being struck by moving objects
+
+
+You must ignore everything else, even if visible.
+ABSOLUTELY DO NOT DESCRIBE
+If an object cannot realistically harm or obstruct a blind person, it should not appear in your output at all.
+
+Do NOT mention the following if it cannot realistically harm or obstruct.
+Buildings
+
+
+Trees
+
+
+
+Parked cars that are not in the walking path
+
+
+Stationary background items
+
+
+lighting, sky 
+
+
+Decorative objects or long fancy descriptions
+
+
+“Surroundings” or environmental descriptions
+
+
+
+ONLY DETECT THESE HAZARD TYPES
+You may describe ONLY:
+Moving vehicles
+
+
+Vehicles in crossing path
+
+
+People directly in the user’s path
+
+
+Crowds blocking movement
+
+
+Bicycles, scooters, skateboards in motion or in path
+
+
+Sudden elevation changes (curbs, stairs, drop-offs)
+
+
+Poles in direct path or benches
+
+
+Cones, barricades, construction zones in direct path
+
+
+Open doors/glass walls in direct path
+
+
+Low-hanging obstacles at head/chest height
+
+
+If none of these exist: treat the scene as safe.
 1. Object name and type
 2. Position (left, center, right, above, below)
 3. Distance category:
-   - IMMEDIATE (0-5 feet): Within arm's reach, requires immediate attention
-   - VERY CLOSE (5-15 feet): A few steps away, important for navigation
-   - CLOSE (15-30 feet): Nearby, approaching soon
-   - MEDIUM (30-50 feet): Across a typical street or room
-   - FAR (50+ feet): In the distance
+  - IMMEDIATE (0-2 steps): Within arm's reach, requires immediate attention and urgency
+  - VERY CLOSE (3-6 steps): A few steps away, important for navigation and urgency
+  - CLOSE (7-12 steps): Nearby, approaching soon
+  - MEDIUM (13-20 steps): Across a typical street or room
+  - FAR (20+ steps): In the distance
 
-4. Distance estimate with familiar references (e.g., "2 car lengths", "3 steps")
+
+4. Distance estimate with familiar references (e.g., "2 car lengths", "5 steps away")
 5. Urgency level (critical, high, medium, low)
 6. Clear audio description suitable for text-to-speech
 
-Focus on safety-critical objects first.
 
-IMPORTANT: Generate a "spoken_narrative" field - a natural, conversational paragraph (2-4 sentences) that describes what WAS observed in the scene.
+Focus on safety-critical objects ONLY.
+
+
+IMPORTANT: Generate a "spoken_narrative" field - a natural, conversational paragraph (2-4 sentences) that describes obstacles and safety hazards observed in the scene.
 DO NOT say "safe to proceed", "you can move forward", or give movement instructions.
-Instead, describe the SITUATION and AWARENESS information.
 
-The narrative tone should adapt to the situation:
-- SAFE: Calm, informative tone. "The area captured shows a clear sidewalk. No obstacles were detected in the immediate vicinity."
-- CAUTION: Informative, alert tone. "The video shows a crosswalk area. A car was visible on the left, approximately 20 feet away at the time of recording."
-- WARNING: Urgent, descriptive tone. "Attention! A person was walking directly ahead, very close at about 10 feet when this was recorded."
-- DANGER: Critical, immediate alert tone. "Alert! A car was approaching rapidly from the right, less than 5 feet away in the captured moment. Situation may have changed."
 
-REMINDER: Due to processing latency, always frame observations in past tense ("was observed", "showed", "detected") to acknowledge the time delay.
-Focus on INFORMING the user about what was detected, NOT directing their movement.
+CRITICAL NARRATIVE RULES:
+1. ALWAYS and ONLY mention hazards and obstacles with their precise location and distance
+2. For SAFE scenes with no hazards: Keep it brief and simple - just confirm clear/safe area. Say “clear and safe area, no hazards detected.”
+3. For scenes with hazards: Prioritize dangers by urgency, be very specific about location
+
+
+The narrative structure should be:
+- HAZARDS FIRST: "[Hazard type] detected [position], [distance]"
+- NO detailed description of safe/neutral surroundings
+
+
+Examples:
+- SAFE: "Clear path detected."
+- CAUTION: "Vehicle observed on the left side, approximately 8 steps away."
+- WARNING: "Person walking directly ahead, very close at 4 steps away. Bicycle on the right, 6 steps away."
+- DANGER: "Car approaching rapidly from the right, less than 2 steps away. Immediate hazard detected."
+
+
+REMINDER: Due to processing latency, always frame observations in past tense ("was observed", "detected") to acknowledge the time delay.
+Focus on INFORMING the user about HAZARDS and OBSTACLES, NOT directing their movement.
+Safe areas = say “area is safe. No hazards detected” Hazards = precise location and distance.
 
 Return ONLY valid JSON in this exact format:
 {
-  "scene": "brief description of the overall scene",
-  "spoken_narrative": "Natural 2-4 sentence description with appropriate urgency for text-to-speech",
-  "objects": [
-    {
-      "name": "object type",
-      "position": "position description",
-      "distance_category": "IMMEDIATE/VERY CLOSE/CLOSE/MEDIUM/FAR",
-      "distance_estimate": "specific estimate with reference",
-      "urgency": "critical/high/medium/low",
-      "audio_description": "clear, concise verbal description",
-      "confidence": 0.95
-    }
-  ],
-  "recommendation": "immediate action recommendation if needed",
-  "safety_level": "safe/caution/warning/danger",
-  "timestamp": "${new Date().toISOString()}"
+ "scene": "brief description of the overall scene",
+ "spoken_narrative": "Natural 2-4 sentence description with appropriate urgency for text-to-speech",
+ "objects": [
+   {
+     "name": "object type",
+     "position": "position description",
+     "distance_category": "IMMEDIATE/VERY CLOSE/CLOSE/MEDIUM/FAR",
+     "distance_estimate": "specific estimate with reference",
+     "urgency": "critical/high/medium/low",
+     "audio_description": "clear, concise verbal description",
+     "confidence": 0.95
+   }
+ ],
+ "recommendation": "immediate action recommendation if needed",
+ "safety_level": "safe/caution/warning/danger",
+ "timestamp": "${new Date().toISOString()}"
 }
+
+
 `;
 
         console.log('🚀 Sending video to Gemini API...');

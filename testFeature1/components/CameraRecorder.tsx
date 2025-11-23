@@ -12,7 +12,7 @@ import {
 import { analyzeVideoWithGemini, GeminiAnalysisResult } from '../services/geminiService';
 import { convertAndCompressToMp4 } from '../services/VideoConversion';
 import { CameraAnnouncements, RecordingAnnouncements, speakNarrative } from '../utils/elevenLabsService';
-import { analysisCompletePattern, countdownPattern, hazardPattern, recordingStartPattern, recordingStopPattern, tapToRecordFeedback } from '../utils/hapticsService';
+import { analysisCompletePattern, hazardPattern, recordingStartPattern, recordingStopPattern, tapToRecordFeedback } from '../utils/hapticsService';
 
 export function CameraRecorder() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -70,21 +70,9 @@ export function CameraRecorder() {
       // Haptic feedback for tap
       tapToRecordFeedback();
 
-      console.log('📹 Starting 5-second video recording...');
+      console.log('📹 Starting 5-second video recording immediately...');
 
-      // Announce countdown
-      RecordingAnnouncements.startCountdown();
-
-      // Countdown before recording
-      for (let i = 3; i > 0; i--) {
-        setCountdown(i);
-        // Haptic feedback for each countdown number
-        countdownPattern(i);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      setCountdown(null);
-
-      // Start recording
+      // Start recording immediately (no countdown)
       const videoPromise = cameraRef.current.recordAsync({
         maxDuration: 5, // 5 seconds
       });
@@ -176,6 +164,7 @@ export function CameraRecorder() {
           style={styles.camera} 
           facing={facing}
           mode="video"
+          zoom={0.1}
         >
           {/* Recording Indicator */}
           {recording && (
