@@ -75,8 +75,13 @@ export async function analyzeVideoWithGemini(
 
         // Create the prompt for visually impaired assistance
         const prompt = `
-You are an AI assistant helping visually impaired users navigate their environment safely.
+You are an AI assistant helping visually impaired users understand their environment.
 Analyze this video and provide detailed object detection with distance estimation.
+
+IMPORTANT CONTEXT:
+- There is a processing delay between video capture and analysis (several seconds)
+- The situation may have changed since the video was recorded
+- Your role is to INFORM about what was observed, NOT to give movement/navigation instructions
 
 CRITICAL INSTRUCTIONS:
 1. MUTE the audio/sound first - do NOT process or listen to any audio
@@ -100,14 +105,18 @@ For each important object detected (vehicles, people, obstacles, signs, crosswal
 
 Focus on safety-critical objects first.
 
-IMPORTANT: Generate a "spoken_narrative" field - a natural, conversational paragraph (2-4 sentences) that describes the scene for text-to-speech. 
-The narrative tone should adapt to the danger level:
-- SAFE: Calm, reassuring tone. "You're in a clear area. No obstacles detected nearby."
-- CAUTION: Informative, alert tone. "Approaching a crosswalk. A car is visible on your left, about 20 feet away."
-- WARNING: Urgent, directive tone. "Warning! Person walking directly ahead, very close, about 10 feet. Please slow down."
-- DANGER: Critical, immediate tone. "Stop! Car approaching fast from the right, less than 5 feet away. Do not proceed!"
+IMPORTANT: Generate a "spoken_narrative" field - a natural, conversational paragraph (2-4 sentences) that describes what WAS observed in the scene.
+DO NOT say "safe to proceed", "you can move forward", or give movement instructions.
+Instead, describe the SITUATION and AWARENESS information.
 
-The narrative should prioritize the most urgent/closest objects and provide actionable guidance.
+The narrative tone should adapt to the situation:
+- SAFE: Calm, informative tone. "The area captured shows a clear sidewalk. No obstacles were detected in the immediate vicinity."
+- CAUTION: Informative, alert tone. "The video shows a crosswalk area. A car was visible on the left, approximately 20 feet away at the time of recording."
+- WARNING: Urgent, descriptive tone. "Attention! A person was walking directly ahead, very close at about 10 feet when this was recorded."
+- DANGER: Critical, immediate alert tone. "Alert! A car was approaching rapidly from the right, less than 5 feet away in the captured moment. Situation may have changed."
+
+REMINDER: Due to processing latency, always frame observations in past tense ("was observed", "showed", "detected") to acknowledge the time delay.
+Focus on INFORMING the user about what was detected, NOT directing their movement.
 
 Return ONLY valid JSON in this exact format:
 {
