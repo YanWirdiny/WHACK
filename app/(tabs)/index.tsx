@@ -1,13 +1,64 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { usePedometer } from '@/hooks/use-pedometer';
+import { TextToSpeechService } from '@/services/text-to-speech';
+import { Priority, PriorityItem, getClosestHighPriorityItem } from '@/types/priority-item';
 
 export default function HomeScreen() {
+  const pedometerData = usePedometer();
+  const [sampleItems] = useState<PriorityItem[]>([
+    {
+      id: '1',
+      name: 'Grocery Store',
+      priority: Priority.HIGH,
+      location: { latitude: 37.7749, longitude: -122.4194 },
+      distance: 250,
+    },
+    {
+      id: '2',
+      name: 'Pharmacy',
+      priority: Priority.HIGH,
+      location: { latitude: 37.7750, longitude: -122.4195 },
+      distance: 350,
+    },
+    {
+      id: '3',
+      name: 'Coffee Shop',
+      priority: Priority.MEDIUM,
+      location: { latitude: 37.7751, longitude: -122.4196 },
+      distance: 150,
+    },
+  ]);
+
+  // Announce closest high priority item
+  const handleAnnounceClosest = () => {
+    const closestItem = getClosestHighPriorityItem(sampleItems);
+    if (closestItem) {
+      const distanceText = closestItem.distance 
+        ? `${closestItem.distance} meters away` 
+        : 'unknown distance';
+      const announcement = `${closestItem.name}, priority ${closestItem.priority}, ${distanceText}.`;
+      TextToSpeechService.speak(announcement);
+    } else {
+      TextToSpeechService.speak('No items found.');
+    }
+  };
+
+  // Announce steps and distance
+  const handleAnnounceSteps = () => {
+    if (pedometerData.isAvailable) {
+      TextToSpeechService.announceDistanceAndSteps(pedometerData.steps, pedometerData.distance);
+    } else {
+      TextToSpeechService.speak('Pedometer is not available on this device.');
+    }
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -18,60 +69,68 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText type="title">Activity Tracker</ThemedText>
         <HelloWave />
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
+      {/* Pedometer Data Display */}
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
+        <ThemedText type="subtitle">Your Activity</ThemedText>
+        {pedometerData.isAvailable ? (
+          <View>
+            <ThemedText style={styles.dataText}>
+              Steps: <ThemedText type="defaultSemiBold">{pedometerData.steps}</ThemedText>
+            </ThemedText>
+            <ThemedText style={styles.dataText}>
+              Distance: <ThemedText type="defaultSemiBold">
+                {(pedometerData.distance / 1000).toFixed(2)} km
+              </ThemedText> ({(pedometerData.distance / 1609.34).toFixed(2)} miles)
+            </ThemedText>
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={handleAnnounceSteps}
+            >
+              <ThemedText style={styles.buttonText}>🔊 Announce Activity</ThemedText>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <ThemedText>Pedometer not available on this device.</ThemedText>
+        )}
+      </ThemedView>
+
+      {/* Priority Items Display */}
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Nearby Locations</ThemedText>
+        {sampleItems.map((item: PriorityItem) => (
+          <View key={item.id} style={styles.itemCard}>
+            <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+            <ThemedText style={styles.itemDetails}>
+              Priority: {item.priority.toUpperCase()} | Distance: {item.distance}m
+            </ThemedText>
+          </View>
+        ))}
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={handleAnnounceClosest}
+        >
+          <ThemedText style={styles.buttonText}>🔊 Announce Closest Priority Item</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+
+      {/* Instructions */}
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">How It Works</ThemedText>
         <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
+          • The app tracks your steps and calculates distance walked
+        </ThemedText>
+        <ThemedText>
+          • Tap &quot;Announce Activity&quot; to hear your stats via text-to-speech
+        </ThemedText>
+        <ThemedText>
+          • Tap &quot;Announce Closest Priority Item&quot; to hear about the nearest high-priority location
+        </ThemedText>
+        <ThemedText style={styles.noteText}>
+          Note: Pedometer requires device permissions and may not work in simulators.
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>
@@ -86,7 +145,7 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   reactLogo: {
     height: 178,
@@ -94,5 +153,42 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  dataText: {
+    fontSize: 16,
+    marginVertical: 4,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  itemCard: {
+    padding: 12,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  itemDetails: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  noteText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontStyle: 'italic',
+    opacity: 0.7,
   },
 });
