@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { analyzeVideoWithGemini, GeminiAnalysisResult } from '../services/geminiService';
 import { convertAndCompressToMp4 } from '../services/VideoConversion';
-import { JsonDisplay } from './JsonDisplay';
+import { speakNarrative } from '../utils/elevenLabsService';
+import { hazardPattern, successPattern } from '../utils/hapticsService';
 
 export function VideoAnalyzer() {
   const [videoUri, setVideoUri] = useState<string | null>(null);
@@ -102,6 +103,23 @@ export function VideoAnalyzer() {
       const analysisResult = await analyzeVideoWithGemini(processedVideoUri);
       setResult(analysisResult);
       console.log('✅ Analysis complete');
+
+      // Play haptic feedback
+      successPattern();
+
+      // Speak the narrative after a brief delay using ElevenLabs
+      if (analysisResult.spoken_narrative) {
+        setTimeout(() => {
+          speakNarrative(analysisResult.spoken_narrative, analysisResult.safety_level);
+        }, 1000);
+      }
+
+      // Additional haptic feedback for danger
+      if (analysisResult.safety_level === 'danger') {
+        setTimeout(() => {
+          hazardPattern();
+        }, 2000);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
@@ -191,6 +209,25 @@ export function VideoAnalyzer() {
         <View style={styles.resultsContainer}>
           <Text style={styles.resultsTitle}>✅ Analysis Complete</Text>
 
+          {/* Spoken Narrative - Most Important for Accessibility */}
+          {result.spoken_narrative && (
+            <View style={styles.narrativeCard}>
+              <View style={styles.narrativeHeader}>
+                <Text style={styles.narrativeIcon}>🔊</Text>
+                <Text style={styles.narrativeLabel}>Audio Description</Text>
+              </View>
+              <Text style={styles.narrativeText}>{result.spoken_narrative}</Text>
+              <TouchableOpacity 
+                style={styles.repeatButton}
+                onPress={() => {
+                  speakNarrative(result.spoken_narrative, result.safety_level);
+                }}
+              >
+                <Text style={styles.repeatButtonText}>🔁 Repeat Audio</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Scene Overview */}
           <View style={styles.sceneCard}>
             <Text style={styles.sceneLabel}>Scene:</Text>
@@ -240,8 +277,8 @@ export function VideoAnalyzer() {
             </View>
           )}
 
-          {/* Raw JSON */}
-          <JsonDisplay data={result} title="📄 Full JSON Response" />
+          {/* Raw JSON - Hidden for cleaner UI */}
+          {/* <JsonDisplay data={result} title="📄 Full JSON Response" /> */}
         </View>
       )}
     </ScrollView>
@@ -353,6 +390,52 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4CAF50',
     marginBottom: 16,
+  },
+  narrativeCard: {
+    backgroundColor: '#E3F2FD',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+    borderLeftWidth: 6,
+    borderLeftColor: '#2196F3',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  narrativeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  narrativeIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  narrativeLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1976D2',
+  },
+  narrativeText: {
+    fontSize: 18,
+    lineHeight: 26,
+    color: '#0D47A1',
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  repeatButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  repeatButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   sceneCard: {
     backgroundColor: '#fff',

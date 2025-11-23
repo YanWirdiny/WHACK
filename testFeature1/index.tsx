@@ -24,7 +24,7 @@ export default function TestFeature1Screen() {
           onPress={() => setActiveTab('camera')}
         >
           <Text style={[styles.tabText, activeTab === 'camera' && styles.tabTextActive]}>
-            📹 Camera
+            Your Camera
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -32,7 +32,7 @@ export default function TestFeature1Screen() {
           onPress={() => setActiveTab('picker')}
         >
           <Text style={[styles.tabText, activeTab === 'picker' && styles.tabTextActive]}>
-            📁 Pick Video
+             Pick a Video
           </Text>
         </TouchableOpacity>
       </View>

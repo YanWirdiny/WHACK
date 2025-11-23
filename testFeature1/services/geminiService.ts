@@ -12,6 +12,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 export interface GeminiAnalysisResult {
   scene: string;
+  spoken_narrative: string; // NEW: Natural paragraph for text-to-speech
   objects: Array<{
     name: string;
     position: string;
@@ -99,9 +100,19 @@ For each important object detected (vehicles, people, obstacles, signs, crosswal
 
 Focus on safety-critical objects first.
 
+IMPORTANT: Generate a "spoken_narrative" field - a natural, conversational paragraph (2-4 sentences) that describes the scene for text-to-speech. 
+The narrative tone should adapt to the danger level:
+- SAFE: Calm, reassuring tone. "You're in a clear area. No obstacles detected nearby."
+- CAUTION: Informative, alert tone. "Approaching a crosswalk. A car is visible on your left, about 20 feet away."
+- WARNING: Urgent, directive tone. "Warning! Person walking directly ahead, very close, about 10 feet. Please slow down."
+- DANGER: Critical, immediate tone. "Stop! Car approaching fast from the right, less than 5 feet away. Do not proceed!"
+
+The narrative should prioritize the most urgent/closest objects and provide actionable guidance.
+
 Return ONLY valid JSON in this exact format:
 {
   "scene": "brief description of the overall scene",
+  "spoken_narrative": "Natural 2-4 sentence description with appropriate urgency for text-to-speech",
   "objects": [
     {
       "name": "object type",
