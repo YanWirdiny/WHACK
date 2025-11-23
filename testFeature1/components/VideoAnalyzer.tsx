@@ -1,20 +1,23 @@
 import * as DocumentPicker from 'expo-document-picker';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { analyzeVideoWithGemini, GeminiAnalysisResult } from '../services/geminiService';
+import { convertAndCompressToMp4 } from '../services/VideoConversion';
 import { JsonDisplay } from './JsonDisplay';
 
 export function VideoAnalyzer() {
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [conversionProgress, setConversionProgress] = useState<string>('');
   const [result, setResult] = useState<GeminiAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +33,7 @@ export function VideoAnalyzer() {
         setVideoUri(video.uri);
         setError(null);
         setResult(null);
+        setConversionProgress('');
         console.log('✅ Video selected:', video.uri);
       }
     } catch (err) {
@@ -49,8 +53,53 @@ export function VideoAnalyzer() {
     setResult(null);
 
     try {
+      let processedVideoUri = videoUri;
+
+      // Check if video is MOV format and needs conversion
+      const isMov = videoUri.toLowerCase().endsWith('.mov') || videoUri.includes('.mov?');
+      
+      if (isMov) {
+        console.log('🎬 MOV format detected, converting to MP4...');
+        setConverting(true);
+        setConversionProgress('Uploading video to CloudConvert...');
+        
+        try {
+          processedVideoUri = await convertAndCompressToMp4(videoUri);
+          console.log('✅ Conversion complete:', processedVideoUri);
+          setConversionProgress('Conversion complete!');
+        } catch (conversionError) {
+          console.error('❌ Conversion failed:', conversionError);
+          
+          // Ask user if they want to try with original file
+          Alert.alert(
+            'Conversion Failed',
+            'Video conversion failed. Would you like to try analyzing the original MOV file instead? (This may not work)',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => {
+                  setAnalyzing(false);
+                  setConverting(false);
+                  return;
+                },
+              },
+              {
+                text: 'Try Original',
+                onPress: () => {
+                  console.log('⚠️ Using original MOV file...');
+                  processedVideoUri = videoUri;
+                },
+              },
+            ]
+          );
+        } finally {
+          setConverting(false);
+        }
+      }
+
       console.log('🔍 Starting analysis...');
-      const analysisResult = await analyzeVideoWithGemini(videoUri);
+      const analysisResult = await analyzeVideoWithGemini(processedVideoUri);
       setResult(analysisResult);
       console.log('✅ Analysis complete');
     } catch (err) {
@@ -60,18 +109,24 @@ export function VideoAnalyzer() {
       Alert.alert('Analysis Failed', errorMessage);
     } finally {
       setAnalyzing(false);
+      setConverting(false);
+      setConversionProgress('');
     }
   };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Gemini 2.0 Flash Video Test</Text>
-        <Text style={styles.headerSubtitle}>Upload MP4 and analyze with AI</Text>
+        <Text style={styles.headerTitle}>Gemini Video Analysis</Text>
+        <Text style={styles.headerSubtitle}>AI-powered accessibility assistant</Text>
       </View>
 
       {/* Video Selection */}
-      <TouchableOpacity style={styles.button} onPress={pickVideo} disabled={analyzing}>
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={pickVideo} 
+        disabled={analyzing || converting}
+      >
         <Text style={styles.buttonText}>
           {videoUri ? '✓ Video Selected' : '📁 Select Video (MP4/MOV)'}
         </Text>
@@ -89,11 +144,20 @@ export function VideoAnalyzer() {
       {/* Analyze Button */}
       {videoUri && (
         <TouchableOpacity
-          style={[styles.button, styles.analyzeButton, analyzing && styles.buttonDisabled]}
+          style={[
+            styles.button, 
+            styles.analyzeButton, 
+            (analyzing || converting) && styles.buttonDisabled
+          ]}
           onPress={analyzeVideo}
-          disabled={analyzing}
+          disabled={analyzing || converting}
         >
-          {analyzing ? (
+          {converting ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.buttonText}>  Converting to MP4...</Text>
+            </View>
+          ) : analyzing ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#fff" />
               <Text style={styles.buttonText}>  Analyzing...</Text>
@@ -102,6 +166,16 @@ export function VideoAnalyzer() {
             <Text style={styles.buttonText}>🔍 Analyze with Gemini</Text>
           )}
         </TouchableOpacity>
+      )}
+
+      {/* Conversion Progress */}
+      {conversionProgress && (
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressText}>⏳ {conversionProgress}</Text>
+          <Text style={styles.progressSubtext}>
+            This may take 30-60 seconds. Please wait...
+          </Text>
+        </View>
       )}
 
       {/* Error Display */}
@@ -122,6 +196,19 @@ export function VideoAnalyzer() {
             <Text style={styles.sceneLabel}>Scene:</Text>
             <Text style={styles.sceneText}>{result.scene}</Text>
           </View>
+
+          {/* Safety Level */}
+          {result.safety_level && (
+            <View style={[
+              styles.safetyCard,
+              result.safety_level === 'danger' && styles.safetyDanger,
+              result.safety_level === 'warning' && styles.safetyWarning,
+              result.safety_level === 'caution' && styles.safetyCaution,
+            ]}>
+              <Text style={styles.safetyLabel}>⚠️ Safety Level:</Text>
+              <Text style={styles.safetyText}>{result.safety_level.toUpperCase()}</Text>
+            </View>
+          )}
 
           {/* Objects Detected */}
           {result.objects && result.objects.length > 0 && (
@@ -222,6 +309,24 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'Courier',
   },
+  progressContainer: {
+    backgroundColor: '#FFF3E0',
+    padding: 16,
+    borderRadius: 12,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  progressText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#F57C00',
+    marginBottom: 4,
+  },
+  progressSubtext: {
+    fontSize: 12,
+    color: '#E65100',
+    textAlign: 'center',
+  },
   errorContainer: {
     backgroundColor: '#FFEBEE',
     padding: 16,
@@ -265,6 +370,37 @@ const styles = StyleSheet.create({
   },
   sceneText: {
     fontSize: 16,
+    color: '#333',
+  },
+  safetyCard: {
+    backgroundColor: '#E8F5E9',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  safetyDanger: {
+    backgroundColor: '#FFEBEE',
+    borderLeftColor: '#F44336',
+  },
+  safetyWarning: {
+    backgroundColor: '#FFF3E0',
+    borderLeftColor: '#FF9800',
+  },
+  safetyCaution: {
+    backgroundColor: '#FFF9C4',
+    borderLeftColor: '#FFC107',
+  },
+  safetyLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  safetyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
   },
   objectsSection: {

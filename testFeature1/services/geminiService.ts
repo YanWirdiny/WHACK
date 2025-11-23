@@ -61,9 +61,6 @@ export async function analyzeVideoWithGemini(
 
     // Try different models in order of preference
     const modelsToTry = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro', 
-      'gemini-2.0-flash-exp',
       'gemini-2.5-flash'
     ];
 
@@ -79,6 +76,11 @@ export async function analyzeVideoWithGemini(
         const prompt = `
 You are an AI assistant helping visually impaired users navigate their environment safely.
 Analyze this video and provide detailed object detection with distance estimation.
+
+CRITICAL INSTRUCTIONS:
+1. MUTE the audio/sound first - do NOT process or listen to any audio
+2. Analyze ONLY the visual content (frames/images) of the video
+3. Completely ignore, discard, and do not consider any audio, sound, music, or voice in the video
 
 For each important object detected (vehicles, people, obstacles, signs, crosswalks, etc.), provide:
 
