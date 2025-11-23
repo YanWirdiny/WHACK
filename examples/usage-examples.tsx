@@ -45,8 +45,8 @@ function ExampleTTS() {
   
   // Method 2: Create custom announcement
   const customAnnounce = () => {
-    const text = `Current progress: ${pedometerData.steps} steps, 
-                  ${(pedometerData.distance / 1000).toFixed(2)} kilometers`;
+    const distanceKm = (pedometerData.distance / 1000).toFixed(2);
+    const text = `Current progress: ${pedometerData.steps} steps, ${distanceKm} kilometers`;
     TextToSpeechService.speak(text);
   };
   
@@ -185,12 +185,9 @@ function CompleteExample() {
     const closestItem = getClosestHighPriorityItem(priorityItems);
     
     if (closestItem && pedometerData.isAvailable) {
-      const announcement = `
-        You have walked ${pedometerData.steps} steps, 
-        covering ${(pedometerData.distance / 1000).toFixed(2)} kilometers.
-        The closest high-priority location is ${closestItem.name}, 
-        ${closestItem.distance} meters away.
-      `;
+      const stepsText = `You have walked ${pedometerData.steps} steps, covering ${(pedometerData.distance / 1000).toFixed(2)} kilometers.`;
+      const itemText = `The closest high-priority location is ${closestItem.name}, ${closestItem.distance} meters away.`;
+      const announcement = `${stepsText} ${itemText}`;
       TextToSpeechService.speak(announcement);
     }
   };

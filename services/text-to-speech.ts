@@ -11,43 +11,71 @@ export interface SpeechOptions {
  */
 export class TextToSpeechService {
   private static isSpeaking = false;
+  private static speakQueue: Array<{ text: string; options: SpeechOptions }> = [];
+  private static isProcessing = false;
 
   /**
    * Speak the given text
    */
   static async speak(text: string, options: SpeechOptions = {}): Promise<void> {
     try {
-      // Stop any ongoing speech
-      if (this.isSpeaking) {
-        await Speech.stop();
+      // Add to queue
+      this.speakQueue.push({ text, options });
+      
+      // Process queue if not already processing
+      if (!this.isProcessing) {
+        await this.processQueue();
       }
-
-      this.isSpeaking = true;
-
-      await Speech.speak(text, {
-        language: options.language || 'en-US',
-        pitch: options.pitch || 1.0,
-        rate: options.rate || 1.0,
-        onDone: () => {
-          this.isSpeaking = false;
-        },
-        onError: () => {
-          this.isSpeaking = false;
-        },
-      });
     } catch (error) {
       console.error('Text-to-speech error:', error);
       this.isSpeaking = false;
+      this.isProcessing = false;
     }
   }
 
   /**
-   * Stop any ongoing speech
+   * Process the speech queue
+   */
+  private static async processQueue(): Promise<void> {
+    if (this.isProcessing) return;
+    
+    this.isProcessing = true;
+    
+    while (this.speakQueue.length > 0) {
+      const item = this.speakQueue.shift();
+      if (!item) continue;
+      
+      this.isSpeaking = true;
+      
+      await new Promise<void>((resolve) => {
+        Speech.speak(item.text, {
+          language: item.options.language || 'en-US',
+          pitch: item.options.pitch || 1.0,
+          rate: item.options.rate || 1.0,
+          onDone: () => {
+            this.isSpeaking = false;
+            resolve();
+          },
+          onError: () => {
+            this.isSpeaking = false;
+            resolve();
+          },
+        });
+      });
+    }
+    
+    this.isProcessing = false;
+  }
+
+  /**
+   * Stop any ongoing speech and clear queue
    */
   static async stop(): Promise<void> {
     try {
+      this.speakQueue = []; // Clear queue
       await Speech.stop();
       this.isSpeaking = false;
+      this.isProcessing = false;
     } catch (error) {
       console.error('Error stopping speech:', error);
     }
