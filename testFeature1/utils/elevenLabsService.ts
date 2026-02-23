@@ -59,8 +59,12 @@ export async function speak(
 
     // Stop any currently playing audio
     if (currentSound) {
-      await currentSound.stopAsync();
-      await currentSound.unloadAsync();
+      try {
+        await currentSound.stopAsync();
+        await currentSound.unloadAsync();
+      } catch {
+        // Sound may already be unloaded — ignore
+      }
       currentSound = null;
     }
 
@@ -227,8 +231,12 @@ export async function speakNarrative(
 export async function stopAll(): Promise<void> {
   try {
     if (currentSound) {
-      await currentSound.stopAsync();
-      await currentSound.unloadAsync();
+      try {
+        await currentSound.stopAsync();
+        await currentSound.unloadAsync();
+      } catch {
+        // Sound may already be unloaded — ignore
+      }
       currentSound = null;
       console.log('🔇 Stopped all audio playback');
     }

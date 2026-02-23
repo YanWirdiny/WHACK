@@ -165,6 +165,18 @@ Open doors/glass walls in direct path
 Low-hanging obstacles at head/chest height
 
 
+CRITICAL - OBJECTS DIRECTLY IN FRONT (PATH OBSTRUCTION):
+For a blind person, ANY object directly in front that could obstruct walking is CRITICAL:
+- Tables, chairs, desks directly ahead
+- Shopping carts, strollers in the walking path
+- Trash bins, mailboxes, fire hydrants in direct path
+- Benches, planters, bollards ahead
+- Walls, doors, partitions directly in front
+- Any stationary object in the center/direct path that could cause collision
+- Report ALL objects in front with: type, exact position (center/slightly left/slightly right), distance in steps
+- Even "harmless" objects matter if they're in the walking path of a blind person
+
+
 If none of these exist: treat the scene as safe.
 1. Object name and type
 2. Position (left, center, right, above, below)
@@ -181,17 +193,11 @@ If none of these exist: treat the scene as safe.
 6. Clear audio description suitable for text-to-speech
 
 
-Focus on safety-critical objects ONLY.
+7. Confidence score (0.0 to 1.0) indicating certainty of detection
 
 
 IMPORTANT: Generate a "spoken_narrative" field - a natural, conversational paragraph (2-4 sentences) that describes obstacles and safety hazards observed in the scene.
 DO NOT say "safe to proceed", "you can move forward", or give movement instructions.
-
-
-CRITICAL NARRATIVE RULES:
-1. ALWAYS and ONLY mention hazards and obstacles with their precise location and distance
-2. For SAFE scenes with no hazards: Keep it brief and simple - just confirm clear/safe area. Say “clear and safe area, no hazards detected.”
-3. For scenes with hazards: Prioritize dangers by urgency, be very specific about location
 
 
 The narrative structure should be:
@@ -204,6 +210,9 @@ Examples:
 - CAUTION: "Vehicle observed on the left side, approximately 8 steps away."
 - WARNING: "Person walking directly ahead, very close at 4 steps away. Bicycle on the right, 6 steps away."
 - DANGER: "Car approaching rapidly from the right, less than 2 steps away. Immediate hazard detected."
+- PATH OBSTRUCTION: "Table directly in front at 3 steps away, blocking path."
+- PATH OBSTRUCTION: "Chair in center path at 5 steps away. Trash bin on the right at 4 steps away."
+- PATH OBSTRUCTION: "Wall directly ahead at 6 steps away. Door frame slightly to the left at 5 steps away."
 
 
 REMINDER: Due to processing latency, always frame observations in past tense ("was observed", "detected") to acknowledge the time delay.
