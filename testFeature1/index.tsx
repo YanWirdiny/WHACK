@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraRecorder } from './components/CameraRecorder';
+import { LiveAnalyzer } from './components/LiveAnalyzer';
 import { LoadingScreen } from './components/LoadingScreen';
 import { VideoAnalyzer } from './components/videoAnalyzer';
 
 export default function TestFeature1Screen() {
-  const [activeTab, setActiveTab] = useState<'camera' | 'picker'>('camera');
+  const [activeTab, setActiveTab] = useState<'live' | 'camera' | 'picker'>('live');
   const [isLoading, setIsLoading] = useState(true);
 
   // Show loading screen first
@@ -20,11 +22,19 @@ export default function TestFeature1Screen() {
       {/* Tab Switcher */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
+          style={[styles.tab, activeTab === 'live' && styles.tabActive]}
+          onPress={() => setActiveTab('live')}
+        >
+          <Text style={[styles.tabText, activeTab === 'live' && styles.tabTextActive]}>
+            Live
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'camera' && styles.tabActive]}
           onPress={() => setActiveTab('camera')}
         >
           <Text style={[styles.tabText, activeTab === 'camera' && styles.tabTextActive]}>
-            Your Camera
+            Snap
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -32,15 +42,21 @@ export default function TestFeature1Screen() {
           onPress={() => setActiveTab('picker')}
         >
           <Text style={[styles.tabText, activeTab === 'picker' && styles.tabTextActive]}>
-             Pick a Video
+            Pick Video
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      <ScrollView style={styles.content}>
-        {activeTab === 'camera' ? <CameraRecorder /> : <VideoAnalyzer />}
-      </ScrollView>
+      {/* Content — Live tab is full screen, others scroll */}
+      {activeTab === 'live' ? (
+        <View style={styles.liveContainer}>
+          <LiveAnalyzer />
+        </View>
+      ) : (
+        <ScrollView style={styles.content}>
+          {activeTab === 'camera' ? <CameraRecorder /> : <VideoAnalyzer />}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -74,6 +90,9 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#2196F3',
     fontWeight: 'bold',
+  },
+  liveContainer: {
+    flex: 1,
   },
   content: {
     flex: 1,
