@@ -238,3 +238,40 @@ npx expo start --dev-client --tunnel
 Scanned the QR code from the terminal with the iPhone Camera app. The tunnel bypasses WiFi/IP configuration entirely and routes the JS bundle through a public URL.
 
 **Docs:** https://docs.expo.dev/more/expo-cli/#--tunnel
+
+---
+
+## [009] LiveAnalyzer — takeSnapshot Fails, Replaced with takePhoto
+
+**Date:** 2026-03-04
+**File:** `testFeature1/components/LiveAnalyzer.tsx`
+
+### Description
+The live analysis loop and on-demand scan both called `takeSnapshot()` on the camera ref, which threw a runtime error on iOS:
+
+```
+takeSnapshot failed — use takePhoto instead
+```
+
+### Root Cause
+In `react-native-vision-camera` v4, `takeSnapshot()` on iOS requires `video={true}` on the `<Camera>` component — it pulls a frame directly from the **video pipeline**. The `<Camera>` in `LiveAnalyzer` was configured with `photo={true}` (still image mode), making `takeSnapshot()` incompatible.
+
+| Method | Requires | iOS behavior |
+|---|---|---|
+| `takeSnapshot()` | `video={true}` | Pulls frame from video pipeline |
+| `takePhoto()` | `photo={true}` | Captures a full still image |
+
+Both return a `PhotoFile` with a `.path` property — the output is identical for our use case.
+
+### Solution
+Replaced both `takeSnapshot()` calls with `takePhoto({ flash: 'off' })`:
+
+```ts
+// Before (wrong — requires video={true})
+const photo = await cameraRef.current.takeSnapshot({ quality: 40 });
+
+// After (correct — matches photo={true} on Camera)
+const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+```
+
+**Docs:** https://react-native-vision-camera.com/docs/api/classes/Camera#takephoto
