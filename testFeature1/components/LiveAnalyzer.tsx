@@ -17,7 +17,15 @@
 
 import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import {
   Gesture,
   GestureDetector,
@@ -47,22 +55,166 @@ import {
 
 type SystemState = "idle" | "calibrating" | "monitoring" | "on_demand";
 
+// ─── Siri Wave Bar ────────────────────────────────────────────────────────────
+
+function WaveBar({
+  active,
+  color,
+}: {
+  active: boolean;
+  color: string;
+}) {
+  const height = useSharedValue(6);
+
+  useEffect(() => {
+    if (active) {
+      height.value = withRepeat(
+        withSequence(
+          withTiming(6 + Math.random() * 34, {
+            duration: 300 + Math.random() * 300,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(6, {
+            duration: 300 + Math.random() * 300,
+            easing: Easing.inOut(Easing.sin),
+          })
+        ),
+        -1,
+        true
+      );
+    } else {
+      height.value = withTiming(6, { duration: 400 });
+    }
+  }, [active]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    height: height.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.waveBar,
+        animStyle,
+        { backgroundColor: color, marginHorizontal: 2 },
+      ]}
+    />
+  );
+}
+
+// ─── Siri Wave Logo ───────────────────────────────────────────────────────────
+
+function SiriWaveLogo({ active, safetyLevel }: { active: boolean; safetyLevel?: string }) {
+  const BAR_COUNT = 24;
+  const logoOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    logoOpacity.value = withTiming(1, { duration: 600 });
+  }, []);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+  }));
+
+  // Color shifts with safety level
+  const waveColor =
+    safetyLevel === "danger"
+      ? "#FF4143"
+      : safetyLevel === "warning"
+      ? "#FF9800"
+      : safetyLevel === "caution"
+      ? "#FFC107"
+      : "#FAF3F0";
+
+  const accentColor = safetyLevel === "danger" ? "#FF4143" : "#2D3861";
+
+  return (
+    <Animated.View style={[styles.siriContainer, containerStyle]}>
+      {/* Logo above wave */}
+      <Image
+        source={require("/Users/adage-131/Buddy/assets/logo.png")}
+        style={styles.siriLogo}
+        resizeMode="contain"
+      />
+
+      {/* Wave bars */}
+      <View style={styles.waveRow}>
+        {Array.from({ length: BAR_COUNT }).map((_, i) => (
+          <WaveBar
+            key={i}
+            active={active}
+            color={i % 3 === 0 ? accentColor : waveColor}
+          />
+        ))}
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── Danger Banner ────────────────────────────────────────────────────────────
+
+function DangerBanner({ result }: { result: LiveAnalysisResult | null }) {
+  if (!result?.safety_level || result.safety_level === "safe") return null;
+
+  const config = {
+    danger: {
+      bg: "rgba(244, 67, 54, 0.95)",
+      border: "#FF1744",
+      label: "⛔  DANGER",
+    },
+    warning: {
+      bg: "rgba(255, 152, 0, 0.92)",
+      border: "#FF6D00",
+      label: "⚠️  WARNING",
+    },
+    caution: {
+      bg: "rgba(255, 193, 7, 0.88)",
+      border: "#FFD600",
+      label: "⚡  CAUTION",
+    },
+  }[result.safety_level];
+
+  if (!config) return null;
+
+  const topHazard = result.hazards?.[0];
+
+  return (
+    <View
+      style={[
+        styles.dangerBanner,
+        { backgroundColor: config.bg, borderBottomColor: config.border },
+      ]}
+    >
+      <Text style={styles.dangerLabel}>{config.label}</Text>
+      {topHazard && (
+        <Text style={styles.dangerDetail}>
+          {topHazard.name}
+          {topHazard.distance_estimate ? `  ·  ${topHazard.distance_estimate}` : ""}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export function LiveAnalyzer() {
   const device = useCameraDevice("back");
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const cameraRef = useRef<Camera>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isProcessingRef = useRef(false); // prevent overlapping Gemini calls
-  const isOnDemandRef = useRef(false);   // stable ref guard for double-tap
+  const isProcessingRef = useRef(false);
+  const isOnDemandRef = useRef(false);
   const baselineSummaryRef = useRef<string | null>(null);
   const frameCountRef = useRef(0);
 
   const [systemState, setSystemState] = useState<SystemState>("idle");
   const [lastResult, setLastResult] = useState<LiveAnalysisResult | null>(null);
   const [statusText, setStatusText] = useState("Starting live analysis...");
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // ─── Start Live Analysis Loop ──────────────────────────────────────────────
+  // ─── Start Live Analysis Loop ────────────────────────────────────────────
 
   const startLiveLoop = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -70,7 +222,7 @@ export function LiveAnalyzer() {
     frameCountRef.current = 0;
     baselineSummaryRef.current = null;
     setSystemState("calibrating");
-    setStatusText("Calibrating environment...");
+    setStatusText("Calibrating...");
     speakCalm("Calibrating environment. Please hold still.");
 
     intervalRef.current = setInterval(async () => {
@@ -80,7 +232,7 @@ export function LiveAnalyzer() {
         isProcessingRef.current = true;
         frameCountRef.current += 1;
 
-        const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+        const photo = await cameraRef.current.takePhoto({ flash: "off" });
         if (!photo?.path) return;
 
         const base64 = await FileSystem.readAsStringAsync(photo.path, {
@@ -103,7 +255,7 @@ export function LiveAnalyzer() {
 
           if (frameCountRef.current === 3) {
             setSystemState("monitoring");
-            setStatusText("Live monitoring active");
+            setStatusText("Live");
             analysisCompletePattern();
             CameraAnnouncements.ready();
           }
@@ -112,7 +264,9 @@ export function LiveAnalyzer() {
         setLastResult(result);
 
         if (result.has_change && result.spoken_narrative) {
+          setIsSpeaking(true);
           await speakNarrative(result.spoken_narrative, result.safety_level);
+          setIsSpeaking(false);
           if (result.safety_level === "danger") {
             hazardPattern();
           }
@@ -125,7 +279,7 @@ export function LiveAnalyzer() {
     }, 1500);
   }, []);
 
-  // ─── On-Demand Full Scan (double tap) ─────────────────────────────────────
+  // ─── On-Demand Full Scan (double tap) ──────────────────────────────────
 
   const triggerOnDemandScan = useCallback(async () => {
     if (!cameraRef.current || isOnDemandRef.current) return;
@@ -133,11 +287,11 @@ export function LiveAnalyzer() {
     try {
       isOnDemandRef.current = true;
       setSystemState("on_demand");
-      setStatusText("Full scan requested...");
+      setStatusText("Full scan...");
       tapToRecordFeedback();
       speakCalm("Scanning full environment. Please wait.");
 
-      const photo = await cameraRef.current.takePhoto({ flash: 'off' });
+      const photo = await cameraRef.current.takePhoto({ flash: "off" });
       if (!photo?.path) return;
 
       const base64 = await FileSystem.readAsStringAsync(photo.path, {
@@ -149,7 +303,9 @@ export function LiveAnalyzer() {
       if (result) {
         setLastResult(result);
         if (result.spoken_narrative) {
+          setIsSpeaking(true);
           await speakNarrative(result.spoken_narrative, result.safety_level);
+          setIsSpeaking(false);
         }
         if (result.safety_level === "danger") {
           hazardPattern();
@@ -161,11 +317,11 @@ export function LiveAnalyzer() {
     } finally {
       isOnDemandRef.current = false;
       setSystemState("monitoring");
-      setStatusText("Live monitoring active");
+      setStatusText("Live");
     }
   }, []);
 
-  // ─── Gestures ─────────────────────────────────────────────────────────────
+  // ─── Gestures ──────────────────────────────────────────────────────────
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
@@ -173,7 +329,7 @@ export function LiveAnalyzer() {
       triggerOnDemandScan();
     });
 
-  // ─── Lifecycle ────────────────────────────────────────────────────────────
+  // ─── Lifecycle ─────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (hasPermission) {
@@ -186,7 +342,7 @@ export function LiveAnalyzer() {
     };
   }, [hasPermission, startLiveLoop]);
 
-  // ─── Permission Gate ───────────────────────────────────────────────────────
+  // ─── Permission Gate ───────────────────────────────────────────────────
 
   if (!hasPermission) {
     return (
@@ -207,66 +363,67 @@ export function LiveAnalyzer() {
     );
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────
 
-  const safetyColor = {
-    safe: "#4CAF50",
-    caution: "#FFC107",
-    warning: "#FF9800",
-    danger: "#F44336",
-  }[lastResult?.safety_level ?? "safe"];
+  const waveActive =
+    isSpeaking ||
+    systemState === "calibrating" ||
+    systemState === "on_demand";
 
   return (
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={doubleTap}>
         <View style={styles.container}>
-          {/* Live Camera Preview */}
+
+          {/* ── Full-screen camera ── */}
           <Camera
             ref={cameraRef}
-            style={styles.camera}
+            style={StyleSheet.absoluteFill}
             device={device}
             isActive={true}
             photo={true}
           />
 
-          {/* Status Overlay */}
+          {/* ── Danger / Warning banner (top) ── */}
+          <DangerBanner result={lastResult} />
+
+          {/* ── Status badge (top-right) ── */}
           <View style={styles.statusOverlay}>
-            <View style={[styles.statusBadge, { borderColor: safetyColor }]}>
-              <View style={[styles.statusDot, { backgroundColor: safetyColor }]} />
+            <View
+              style={[
+                styles.statusBadge,
+                systemState === "calibrating" && styles.statusCalibrating,
+                systemState === "on_demand" && styles.statusOnDemand,
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      systemState === "monitoring" ? "#4CAF50" :
+                      systemState === "on_demand" ? "#FF4143" :
+                      "#FFC107",
+                  },
+                ]}
+              />
               <Text style={styles.statusText}>{statusText}</Text>
             </View>
-            {systemState === "calibrating" && (
-              <ActivityIndicator color="#fff" style={styles.spinner} />
-            )}
           </View>
 
-          {/* Last Hazard Display */}
-          {lastResult?.hazards && lastResult.hazards.length > 0 && (
-            <View style={styles.hazardOverlay}>
-              {lastResult.hazards.slice(0, 2).map((h, i) => (
-                <View key={i} style={styles.hazardChip}>
-                  <Text style={styles.hazardText}>
-                    ⚠ {h.name} — {h.distance_estimate}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
+          {/* ── Siri wave logo (bottom center) ── */}
+          <SiriWaveLogo
+            active={waveActive}
+            safetyLevel={lastResult?.safety_level}
+          />
 
-          {/* Double Tap Hint */}
+          {/* ── Hint ── */}
           {systemState === "monitoring" && (
             <View style={styles.hintOverlay}>
               <Text style={styles.hintText}>Double tap for full scan</Text>
             </View>
           )}
 
-          {/* On-Demand Scanning Indicator */}
-          {systemState === "on_demand" && (
-            <View style={styles.scanningOverlay}>
-              <ActivityIndicator size="large" color="#fff" />
-              <Text style={styles.scanningText}>Full scan in progress...</Text>
-            </View>
-          )}
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
@@ -284,91 +441,116 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#000",
   },
-  camera: {
-    flex: 1,
-  },
   permissionText: {
     color: "#fff",
     fontSize: 16,
     marginBottom: 16,
   },
   permissionButton: {
-    color: "#2196F3",
+    color: "#FF4143",
     fontSize: 16,
     fontWeight: "bold",
     padding: 12,
   },
+
+  // ── Danger banner ──
+  dangerBanner: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 52,
+    paddingBottom: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    zIndex: 20,
+  },
+  dangerLabel: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  dangerDetail: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+
+  // ── Status badge ──
   statusOverlay: {
     position: "absolute",
-    top: 16,
-    left: 16,
-    right: 16,
-    flexDirection: "row",
+    top: 64,
+    left: 0,
+    right: 0,
     alignItems: "center",
-    gap: 12,
+    zIndex: 15,
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1.5,
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  statusCalibrating: {
+    borderColor: "#FFC107",
+  },
+  statusOnDemand: {
+    borderColor: "#FF4143",
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
   },
   statusText: {
     color: "#fff",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
   },
-  spinner: {
-    marginLeft: 4,
-  },
-  hazardOverlay: {
+
+  // ── Siri wave ──
+  siriContainer: {
     position: "absolute",
-    bottom: 80,
-    left: 16,
-    right: 16,
-    gap: 8,
-  },
-  hazardChip: {
-    backgroundColor: "rgba(244, 67, 54, 0.85)",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  hazardText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  hintOverlay: {
-    position: "absolute",
-    bottom: 24,
+    bottom: 48,
     left: 0,
     right: 0,
     alignItems: "center",
+    zIndex: 10,
+  },
+  siriLogo: {
+    width: 64,
+    height: 64,
+    marginBottom: 12,
+  },
+  waveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 48,
+  },
+  waveBar: {
+    width: 3,
+    borderRadius: 2,
+  },
+
+  // ── Hint ──
+  hintOverlay: {
+    position: "absolute",
+    bottom: 16,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
   },
   hintText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 13,
-  },
-  scanningOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(33, 150, 243, 0.75)",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 16,
-  },
-  scanningText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 });

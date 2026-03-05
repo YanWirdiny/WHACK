@@ -1,13 +1,13 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
-} from 'react-native-reanimated';
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 interface LoadingScreenProps {
   onLoadingComplete: () => void;
@@ -16,26 +16,26 @@ interface LoadingScreenProps {
 // Professional Color Palette for Vision Assistance App
 const COLORS = {
   // Primary - Trust & Reliability
-  primary: '#2563EB', // Deep blue
-  primaryLight: '#3B82F6',
-  primaryDark: '#1E40AF',
-  
+  primary: "#FAF3F0", // Deep blue
+  primaryLight: "#F9D0C6",
+  primaryDark: "#ddb1a6ff",
+
   // Secondary - Vision & Clarity
-  secondary: '#10B981', // Green (success, vision)
-  secondaryLight: '#34D399',
-  
+  secondary: "#2D3861", // Green (success, vision)
+  secondaryLight: "#2D3861",
+
   // Accent - Energy & Innovation
-  accent: '#F59E0B', // Amber
-  
+  accent: "#FF4143", // Amber
+
   // Neutrals
-  dark: '#1F2937',
-  darkLight: '#374151',
-  light: '#F3F4F6',
-  white: '#FFFFFF',
-  
+  dark: "#1F2937",
+  darkLight: "#374151",
+  light: "#F3F4F6",
+  white: "#FFFFFF",
+
   // Gradients
-  gradientStart: '#1E3A8A', // Navy blue
-  gradientEnd: '#2563EB', // Electric blue
+  gradientStart: "#F9D0C6", // Navy blue
+  gradientEnd: "#FF4143", // Electric blue
 };
 
 export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
@@ -50,7 +50,7 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
       damping: 12,
       stiffness: 100,
     });
-    
+
     opacity.value = withTiming(1, { duration: 600 });
 
     // Progress bar animation
@@ -61,10 +61,10 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
       scale.value = withRepeat(
         withSequence(
           withTiming(1.05, { duration: 1200 }),
-          withTiming(1, { duration: 1200 })
+          withTiming(1, { duration: 1200 }),
         ),
         -1,
-        true
+        true,
       );
     }, 800);
 
@@ -72,7 +72,7 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
     const completeTimer = setTimeout(() => {
       // Fade out
       opacity.value = withTiming(0, { duration: 400 });
-      
+
       // Call completion after fade completes
       setTimeout(() => {
         onLoadingComplete();
@@ -101,15 +101,15 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
       <View style={styles.gradientBottom} />
 
       <Animated.View style={[styles.content, logoAnimatedStyle]}>
-        {/* Professional Logo Design */}
+        {/* Logo Image */}
         <View style={styles.logoWrapper}>
-          <View style={styles.logoOuter}>
-            <View style={styles.logoInner}>
-              <View style={styles.logoCenter} />
-            </View>
-          </View>
+          <Image
+            source={require("/Users/adage-131/Buddy/assets/logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
-        
+
         {/* Brand Name with Professional Typography */}
         <Text style={styles.brandName}>BUDDY</Text>
         <View style={styles.taglineContainer}>
@@ -133,86 +133,58 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
       </View>
     </View>
   );
-}const styles = StyleSheet.create({
+}
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.dark,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
   },
   gradientTop: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: '50%',
+    height: "50%",
     backgroundColor: COLORS.gradientStart,
     opacity: 0.6,
   },
   gradientBottom: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: '50%',
+    height: "50%",
     backgroundColor: COLORS.primary,
     opacity: 0.4,
   },
   content: {
-    alignItems: 'center',
+    alignItems: "center",
     zIndex: 10,
   },
   logoWrapper: {
-    marginBottom: 40,
-    alignItems: 'center',
+    marginBottom: 32,
+    alignItems: "center",
   },
-  logoOuter: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.primary,
-  },
-  logoInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  logoCenter: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
+  logoImage: {
+    width: 180,
+    height: 180,
   },
   brandName: {
     fontSize: 56,
-    fontWeight: '800',
+    fontWeight: "800",
     color: COLORS.white,
     letterSpacing: 8,
     marginBottom: 20,
-    textShadowColor: 'rgba(37, 99, 235, 0.5)',
+    textShadowColor: "rgba(255, 65, 67, 0.4)",
     textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 12,
   },
   taglineContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 16,
   },
   taglineLine: {
@@ -223,26 +195,26 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
   tagline: {
     fontSize: 14,
     color: COLORS.light,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: 3,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   loadingSection: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 100,
-    width: '70%',
-    alignItems: 'center',
+    width: "70%",
+    alignItems: "center",
   },
   progressBarContainer: {
-    width: '100%',
+    width: "100%",
     height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 2,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 20,
   },
   progressBar: {
-    height: '100%',
+    height: "100%",
     backgroundColor: COLORS.secondary,
     shadowColor: COLORS.secondary,
     shadowOffset: { width: 0, height: 0 },
@@ -252,19 +224,19 @@ export function LoadingScreen({ onLoadingComplete }: LoadingScreenProps) {
   loadingText: {
     color: COLORS.light,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
     letterSpacing: 2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     opacity: 0.8,
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 30,
   },
   version: {
     color: COLORS.light,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: 1.5,
     opacity: 0.5,
   },

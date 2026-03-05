@@ -1,62 +1,20 @@
 import React, { useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraRecorder } from './components/CameraRecorder';
 import { LiveAnalyzer } from './components/LiveAnalyzer';
 import { LoadingScreen } from './components/LoadingScreen';
-import { VideoAnalyzer } from './components/videoAnalyzer';
 
 export default function TestFeature1Screen() {
-  const [activeTab, setActiveTab] = useState<'live' | 'camera' | 'picker'>('live');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Show loading screen first
   if (isLoading) {
     return <LoadingScreen onLoadingComplete={() => setIsLoading(false)} />;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
-      {/* Tab Switcher */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'live' && styles.tabActive]}
-          onPress={() => setActiveTab('live')}
-        >
-          <Text style={[styles.tabText, activeTab === 'live' && styles.tabTextActive]}>
-            Live
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'camera' && styles.tabActive]}
-          onPress={() => setActiveTab('camera')}
-        >
-          <Text style={[styles.tabText, activeTab === 'camera' && styles.tabTextActive]}>
-            Snap
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'picker' && styles.tabActive]}
-          onPress={() => setActiveTab('picker')}
-        >
-          <Text style={[styles.tabText, activeTab === 'picker' && styles.tabTextActive]}>
-            Pick Video
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content — Live tab is full screen, others scroll */}
-      {activeTab === 'live' ? (
-        <View style={styles.liveContainer}>
-          <LiveAnalyzer />
-        </View>
-      ) : (
-        <ScrollView style={styles.content}>
-          {activeTab === 'camera' ? <CameraRecorder /> : <VideoAnalyzer />}
-        </ScrollView>
-      )}
+    <SafeAreaView style={styles.container} edges={[]}>
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <LiveAnalyzer />
     </SafeAreaView>
   );
 }
@@ -64,38 +22,7 @@ export default function TestFeature1Screen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: '#2196F3',
-  },
-  tabText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: '#2196F3',
-    fontWeight: 'bold',
-  },
-  liveContainer: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
+    backgroundColor: '#000',
   },
 });
 
