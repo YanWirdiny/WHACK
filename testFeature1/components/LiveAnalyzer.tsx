@@ -52,6 +52,13 @@ import {
   hazardPattern,
   tapToRecordFeedback,
 } from "../utils/hapticsService";
+import {
+  isFrameWorthAnalyzing,
+  PostureHint,
+  startMovementGuidance,
+  stopMovementGuidance,
+  subscribeMovementHints,
+} from "../utils/movementGuidanceService";
 
 type SystemState = "idle" | "calibrating" | "monitoring" | "on_demand";
 
@@ -213,6 +220,7 @@ export function LiveAnalyzer() {
   const [lastResult, setLastResult] = useState<LiveAnalysisResult | null>(null);
   const [statusText, setStatusText] = useState("Starting live analysis...");
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [postureHint, setPostureHint] = useState<PostureHint>("stable");
 
   // ─── Start Live Analysis Loop ────────────────────────────────────────────
 
@@ -227,6 +235,11 @@ export function LiveAnalyzer() {
 
     intervalRef.current = setInterval(async () => {
       if (isProcessingRef.current || !cameraRef.current) return;
+
+      // Skip if the user's posture would produce a bad frame.
+      // Calibration still runs so the first 3 baseline frames can gather
+      // data even if the phone wobbles a bit during handoff.
+      if (frameCountRef.current > 3 && !isFrameWorthAnalyzing()) return;
 
       try {
         isProcessingRef.current = true;
@@ -334,6 +347,15 @@ export function LiveAnalyzer() {
   useEffect(() => {
     if (hasPermission) {
       startLiveLoop();
+      startMovementGuidance();
+      const unsub = subscribeMovementHints(setPostureHint);
+
+      return () => {
+        unsub();
+        stopMovementGuidance();
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        stopAll();
+      };
     }
 
     return () => {
@@ -410,6 +432,21 @@ export function LiveAnalyzer() {
               <Text style={styles.statusText}>{statusText}</Text>
             </View>
           </View>
+
+          {/* ── Posture hint (under status badge) ── */}
+          {postureHint !== "stable" && systemState !== "on_demand" && (
+            <View style={styles.postureOverlay}>
+              <View style={styles.postureBadge}>
+                <Text style={styles.postureText}>
+                  {postureHint === "shaking" && "Hold still"}
+                  {postureHint === "tilted_down" && "Tilt up"}
+                  {postureHint === "tilted_up" && "Tilt down"}
+                  {postureHint === "flat" && "Pick up the phone"}
+                  {postureHint === "covered" && "Camera covered"}
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* ── Siri wave logo (bottom center) ── */}
           <SiriWaveLogo
@@ -537,6 +574,28 @@ const styles = StyleSheet.create({
   waveBar: {
     width: 3,
     borderRadius: 2,
+  },
+
+  // ── Posture hint ──
+  postureOverlay: {
+    position: "absolute",
+    top: 108,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 14,
+  },
+  postureBadge: {
+    backgroundColor: "rgba(255, 193, 7, 0.92)",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+  },
+  postureText: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 
   // ── Hint ──

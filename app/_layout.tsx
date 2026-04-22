@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -11,6 +12,11 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useFonts({
+    'CormorantGaramond-Regular': require('../assets/fonts/CormorantGaramond-Regular.ttf'),
+    'CormorantGaramond-Light':   require('../assets/fonts/CormorantGaramond-Light.ttf'),
+  });
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
